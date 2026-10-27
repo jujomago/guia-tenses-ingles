@@ -1,9 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trophy, Star, Flame, Sparkles, BookOpen, Brain, RefreshCw, 
   CheckCircle2, XCircle, Volume2, VolumeX, Search, ArrowRight,
-  Sliders, Loader2
+  Sliders, Loader2, LogIn, LogOut, Mail
 } from 'lucide-react';
+import { supabase } from './lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 // --- DATA STRUCTURES ---
 
@@ -513,7 +515,8 @@ const pcm16ToWavBlob = (pcm16Array: Int16Array, sampleRate = 24000) => {
 
 // Fallback Speech with Gemini TTS API (Kore Voice)
 const speakGeminiTTS = async (text: string) => {
-  const apiKey = ""; // Runtime automatically injected in browser
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+  if (!apiKey) throw new Error('Gemini API key not configured');
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
   const payload = {
@@ -656,6 +659,61 @@ export default function App() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [isSpeakingLoading, setIsSpeakingLoading] = useState(false);
   const [activeSpeakingId, setActiveSpeakingId] = useState<string | null>(null);
+  const [ttsProvider, setTtsProvider] = useState<'elevenlabs' | 'gemini' | 'native'>(() => {
+    const saved = localStorage.getItem('ttsProvider');
+    if (saved === 'elevenlabs' || saved === 'gemini' || saved === 'native') return saved;
+    return 'elevenlabs';
+  });
+
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [authMessage, setAuthMessage] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignInWithMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSigningIn(true);
+    setAuthMessage('');
+    
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      
+      if (error) throw error;
+      setAuthMessage('¡Revisa tu correo! Te hemos enviado un enlace mágico para iniciar sesión.');
+      setEmail('');
+    } catch (error: any) {
+      setAuthMessage('Error: ' + error.message);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   // Simulator State
   const [selectedTenseId, setSelectedTenseId] = useState('present_simple');
@@ -805,19 +863,56 @@ export default function App() {
     );
   };
 
+  const handleTtsProviderChange = (provider: 'elevenlabs' | 'gemini' | 'native') => {
+    setTtsProvider(provider);
+    localStorage.setItem('ttsProvider', provider);
+  };
+
   const speakGeneratedSentence = () => {
     const parts = getDynamicSentenceParts();
     const fullSentence = parts.map(p => p.text).join(' ');
+    
+    if (ttsProvider === 'native') {
+      speakNativeBrowser(fullSentence);
+      return;
+    } else if (ttsProvider === 'gemini') {
+      setIsSpeakingLoading(true);
+      speakGeminiTTS(fullSentence)
+        .then(() => setIsSpeakingLoading(false))
+        .catch((err) => {
+          console.warn('Gemini TTS failed, using native:', err);
+          speakNativeBrowser(fullSentence);
+          setIsSpeakingLoading(false);
+        });
+      return;
+    }
     speakTextWithElevenLabs(fullSentence, setIsSpeakingLoading);
   };
 
   const speakItemWithElevenLabs = (text: string, itemId: string) => {
     setActiveSpeakingId(itemId);
     
-    // Check if item is an irregular verb to preserve ElevenLabs quota
-    if (typeof itemId === 'string' && itemId.startsWith('verb-')) {
+    if (ttsProvider === 'native') {
       speakNativeBrowser(text);
       setTimeout(() => setActiveSpeakingId(null), 1200);
+      return;
+    }
+    
+    // Check if item is an irregular verb to preserve ElevenLabs quota
+    if (ttsProvider === 'elevenlabs' && typeof itemId === 'string' && itemId.startsWith('verb-')) {
+      speakNativeBrowser(text);
+      setTimeout(() => setActiveSpeakingId(null), 1200);
+      return;
+    }
+
+    if (ttsProvider === 'gemini') {
+      speakGeminiTTS(text)
+        .then(() => setActiveSpeakingId(null))
+        .catch((err) => {
+          console.warn('Gemini TTS failed, using native:', err);
+          speakNativeBrowser(text);
+          setActiveSpeakingId(null);
+        });
       return;
     }
 
@@ -889,6 +984,92 @@ export default function App() {
     );
   }, [verbSearch]);
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center bg-gradient-to-tr from-indigo-600 to-purple-600 text-white p-4 rounded-3xl shadow-lg mb-4">
+              <Sparkles className="w-10 h-10" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              Grammar Tenses Explorer
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 font-semibold">
+              Aprende Fórmulas & Wh- Questions
+            </p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 p-8">
+            <div className="flex items-center gap-2 mb-6">
+              <LogIn className="w-6 h-6 text-indigo-600" />
+              <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">Iniciar Sesión</h2>
+            </div>
+
+            <form onSubmit={handleSignInWithMagicLink} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tu@correo.com"
+                    required
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSigningIn}
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {isSigningIn ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-5 h-5" />
+                    <span>Enviar Enlace Mágico</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {authMessage && (
+              <div className={`mt-4 p-4 rounded-xl text-sm font-semibold ${
+                authMessage.includes('Error') 
+                  ? 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'
+                  : 'bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+              }`}>
+                {authMessage}
+              </div>
+            )}
+
+            <p className="mt-6 text-xs text-center text-slate-500 dark:text-slate-400">
+              Solo usuarios invitados pueden acceder
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200 pb-12">
       
@@ -908,7 +1089,23 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2 md:space-x-3">
+          <div className="flex items-center space-x-2 md:space-x-3 flex-wrap">
+            <select
+              value={ttsProvider}
+              onChange={(e) => handleTtsProviderChange(e.target.value as 'elevenlabs' | 'gemini' | 'native')}
+              className="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-2 py-1.5 rounded-full text-xs font-bold border border-slate-200 dark:border-slate-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              title="TTS Provider"
+            >
+              <option value="elevenlabs">🎙️ ElevenLabs</option>
+              <option value="gemini">✨ Gemini</option>
+              <option value="native">🔊 Nativo</option>
+            </select>
+            
+            <div className="hidden lg:flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-600">
+              <Mail className="w-3.5 h-3.5 text-slate-500" />
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[150px]">{user.email}</span>
+            </div>
+            
             <div className="flex items-center space-x-1.5 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 px-3 py-1.5 rounded-full">
               <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
               <span className="font-extrabold text-amber-800 dark:text-amber-200 text-xs">{stars}</span>
@@ -929,6 +1126,14 @@ export default function App() {
               className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
             >
               {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            </button>
+
+            <button
+              onClick={handleSignOut}
+              className="p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-600 dark:text-slate-300 hover:text-red-600 transition-colors"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
 
