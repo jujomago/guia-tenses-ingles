@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { PillTag } from './PillTag';
 import QuestionCard from './QuestionCard';
-import { WH_WORDS, YES_NO_AUXS } from '../data/questions';
+import { WH_WORDS, YES_NO_AUXS, WH_FORMULAS, YESNO_FORMULAS, STRUCT_META } from '../data/questions';
+import type { FormulaRow } from '../data/questions';
 
 interface QuestionsExplorerProps {
   speakItemWithElevenLabs: (text: string, itemId: string) => void;
@@ -60,37 +61,44 @@ export default function QuestionsExplorer({ speakItemWithElevenLabs, activeSpeak
         ))}
       </div>
 
-      {/* Formula banner */}
-      <div className={`p-4 rounded-2xl border-2 ${isWh ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-900' : 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-900'}`}>
-        <span className="block text-[11px] font-black uppercase tracking-wide mb-2 text-slate-500 dark:text-slate-400">
-          Fórmula de la pregunta {isWh ? 'Wh-' : 'Sí/No'}:
+      {/* Formula banner — fórmulas apiladas: el motor cambia según el verbo/auxiliar */}
+      <div className={`p-4 rounded-2xl border-2 space-y-2 ${isWh ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-900' : 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-900'}`}>
+        <span className="block text-[11px] font-black uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Fórmulas de la pregunta {isWh ? 'Wh-' : 'Sí/No'} — el motor cambia según {isWh ? 'el verbo' : 'el auxiliar'}:
         </span>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {isWh ? (
-            <>
-              <PillTag text="(Wh-)" type="wh" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="DO / DOES / DID" type="aux" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="Subject" type="subject" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="Verb (Base)" type="verb" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="Complement?" type="complement" size="sm" />
-            </>
-          ) : (
-            <>
-              <PillTag text="AUX (DO/IS/DID/CAN...)" type="aux" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="Subject" type="subject" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="Verb (Base)" type="verb" size="sm" />
-              <span className="text-slate-400 font-extrabold text-xs">+</span>
-              <PillTag text="Complement?" type="complement" size="sm" />
-            </>
-          )}
-        </div>
-        <p className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-400">
+        {(isWh ? WH_FORMULAS : YESNO_FORMULAS).map((row: FormulaRow) => {
+          const meta = STRUCT_META[row.structure];
+          return (
+            <div key={row.structure} className={`bg-white dark:bg-slate-800 rounded-xl p-2.5 space-y-1.5 border-l-4 ${meta.rowCls}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                  {meta.icon} {meta.label}
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  — cuando {row.when}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {row.pills.map((pill, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5">
+                    {i > 0 && <span className="text-slate-400 font-extrabold text-xs">+</span>}
+                    <PillTag text={pill.text} type={pill.type} size="sm" />
+                  </span>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                <span className="font-bold">Ej: </span>
+                <span className="italic">"{row.example}"</span>
+                {row.note && (
+                  <span className="ml-2 font-semibold text-slate-500 dark:text-slate-400">
+                    ⚠ {row.note}
+                  </span>
+                )}
+              </p>
+            </div>
+          );
+        })}
+        <p className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
           {isWh ? (
             <>🔚 Entonación <span className="text-orange-500 text-sm font-black">↘</span> descendente — respuesta: información (lugar, tiempo, razón...)</>
           ) : (

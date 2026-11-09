@@ -1,4 +1,5 @@
 import { Loader2, Volume2 } from 'lucide-react';
+import { STRUCT_META } from '../data/questions';
 import type { QuestionItem } from '../data/questions';
 
 interface QuestionCardProps {
@@ -57,12 +58,22 @@ export default function QuestionCard({ item, type, speak, activeSpeakingId }: Qu
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs font-medium text-slate-600 dark:text-slate-400 italic bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700 flex items-start justify-between gap-2">
-          <span>"{item.example}"</span>
-          <span className={`not-italic font-black shrink-0 ${styles.arrow}`} title={intonationLabel}>
-            {intonation}
-          </span>
-        </p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {type === 'wh' && (
+            <span
+              className={`inline-flex items-center gap-0.5 text-[10px] font-black px-1.5 py-0.5 rounded-md border shrink-0 ${STRUCT_META[item.structure].badgeCls}`}
+              title={`Esta pregunta usa la forma: ${STRUCT_META[item.structure].label}`}
+            >
+              {STRUCT_META[item.structure].icon} {STRUCT_META[item.structure].badge}
+            </span>
+          )}
+          <p className="text-xs font-medium text-slate-600 dark:text-slate-400 italic bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700 flex items-start justify-between gap-2 flex-1 min-w-0">
+            <span>"{item.example}"</span>
+            <span className={`not-italic font-black shrink-0 ${styles.arrow}`} title={intonationLabel}>
+              {intonation}
+            </span>
+          </p>
+        </div>
         <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-lg border border-emerald-200 dark:border-emerald-900">
           ✅ {item.answer}
         </p>
