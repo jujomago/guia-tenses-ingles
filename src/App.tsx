@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trophy, Star, Flame, Sparkles, BookOpen, Brain, RefreshCw, 
-  CheckCircle2, XCircle, Volume2, VolumeX, Search, ArrowRight,
+  CheckCircle2, XCircle, Volume2, VolumeX, ArrowRight,
   Sliders, Loader2, LogIn, LogOut, Mail, Lock
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import IrregularVerbs from './components/IrregularVerbs';
 
 // --- DATA STRUCTURES ---
 
@@ -256,40 +257,6 @@ const TENSES_DATA = [
       }
     }
   }
-];
-
-const IRREGULAR_VERBS = [
-  { base: 'Be (am/is/are)', past: 'was / were', participle: 'been', meaning: 'Ser o Estar' },
-  { base: 'Become', past: 'became', participle: 'become', meaning: 'Llegar a ser / Volverse' },
-  { base: 'Begin', past: 'began', participle: 'begun', meaning: 'Empezar / Comenzar' },
-  { base: 'Break', past: 'broke', participle: 'broken', meaning: 'Romper' },
-  { base: 'Bring', past: 'brought', participle: 'brought', meaning: 'Traer' },
-  { base: 'Buy', past: 'bought', participle: 'bought', meaning: 'Comprar' },
-  { base: 'Come', past: 'came', participle: 'come', meaning: 'Venir' },
-  { base: 'Do', past: 'did', participle: 'done', meaning: 'Hacer' },
-  { base: 'Drink', past: 'drank', participle: 'drunk', meaning: 'Beber' },
-  { base: 'Drive', past: 'drove', participle: 'driven', meaning: 'Manejar / Conducir' },
-  { base: 'Eat', past: 'ate', participle: 'eaten', meaning: 'Comer' },
-  { base: 'Fly', past: 'flew', participle: 'flown', meaning: 'Volar' },
-  { base: 'Forget', past: 'forgot', participle: 'forgotten', meaning: 'Olvidar' },
-  { base: 'Get', past: 'got', participle: 'got / gotten', meaning: 'Obtener / Conseguir' },
-  { base: 'Give', past: 'gave', participle: 'given', meaning: 'Dar' },
-  { base: 'Go', past: 'went', participle: 'gone', meaning: 'Ir' },
-  { base: 'Have', past: 'had', participle: 'had', meaning: 'Tener / Haber' },
-  { base: 'Know', past: 'knew', participle: 'known', meaning: 'Saber / Conocer' },
-  { base: 'Make', past: 'made', participle: 'made', meaning: 'Hacer / Fabricar' },
-  { base: 'Read', past: 'read', participle: 'read', meaning: 'Leer' },
-  { base: 'Run', past: 'ran', participle: 'run', meaning: 'Correr' },
-  { base: 'See', past: 'saw', participle: 'seen', meaning: 'Ver' },
-  { base: 'Sing', past: 'sang', participle: 'sung', meaning: 'Cantar' },
-  { base: 'Sleep', past: 'slept', participle: 'slept', meaning: 'Dormir' },
-  { base: 'Speak', past: 'spoke', participle: 'spoken', meaning: 'Hablar' },
-  { base: 'Swim', past: 'swam', participle: 'swum', meaning: 'Nadar' },
-  { base: 'Take', past: 'took', participle: 'taken', meaning: 'Tomar / Llevar' },
-  { base: 'Teach', past: 'taught', participle: 'taught', meaning: 'Enseñar' },
-  { base: 'Think', past: 'thought', participle: 'thought', meaning: 'Pensar' },
-  { base: 'Win', past: 'won', participle: 'won', meaning: 'Ganar' },
-  { base: 'Write', past: 'wrote', participle: 'written', meaning: 'Escribir' }
 ];
 
 const QUIZ_QUESTIONS = [
@@ -747,9 +714,6 @@ export default function App() {
   const [selectedSubject, setSelectedSubject] = useState('He');
   const [selectedFormType, setSelectedFormType] = useState('positive');
 
-  // Search & Filter State
-  const [verbSearch, setVerbSearch] = useState('');
-
   // Quiz State
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -1000,16 +964,6 @@ export default function App() {
       setQuizFinished(true);
     }
   };
-
-  const filteredVerbs = useMemo(() => {
-    if (!verbSearch) return IRREGULAR_VERBS;
-    const q = verbSearch.toLowerCase();
-    return IRREGULAR_VERBS.filter(v => 
-      v.base.toLowerCase().includes(q) || 
-      v.past.toLowerCase().includes(q) || 
-      v.meaning.toLowerCase().includes(q)
-    );
-  }, [verbSearch]);
 
   if (authLoading) {
     return (
@@ -1493,55 +1447,10 @@ export default function App() {
               </div>
 
               {/* Irregular Verbs Table */}
-              <div className="bg-white dark:bg-slate-800 p-6 md:p-7 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h3 className="font-black text-slate-800 dark:text-slate-100 text-lg md:text-xl flex items-center gap-2">
-                      <span>📖</span> Verbos Irregulares Comunes
-                    </h3>
-                    <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold">{filteredVerbs.length} verbos listados</span>
-                  </div>
-                  
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar verbo..."
-                      value={verbSearch}
-                      onChange={(e) => setVerbSearch(e.target.value)}
-                      className="pl-9 pr-3 py-2 text-xs font-bold bg-slate-100 dark:bg-slate-700 rounded-xl border-none focus:ring-2 focus:ring-indigo-500 w-36 sm:w-44 text-slate-800 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="max-h-80 overflow-y-auto pr-1 space-y-2">
-                  {filteredVerbs.map((v, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 text-xs border border-slate-100 dark:border-slate-800 hover:border-indigo-200 transition-colors">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-black text-slate-900 dark:text-slate-100 text-sm">{v.base}</span>
-                          <button
-                            onClick={() => speakItemWithElevenLabs(`${v.base}, ${v.past}, ${v.participle}`, `verb-${i}`)}
-                            disabled={activeSpeakingId === `verb-${i}`}
-                            className="p-1 rounded-full text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-950/80 transition-colors disabled:opacity-50"
-                          >
-                            {activeSpeakingId === `verb-${i}` ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Volume2 className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        </div>
-                        <span className="text-slate-500 dark:text-slate-400 text-xs font-bold block">{v.meaning}</span>
-                      </div>
-                      <div className="text-right space-y-0.5">
-                        <span className="text-indigo-600 dark:text-indigo-400 font-mono font-extrabold block text-xs">Past: {v.past}</span>
-                        <span className="text-purple-600 dark:text-purple-400 font-mono font-bold text-[11px] block">Participle: {v.participle}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <IrregularVerbs
+                speakItemWithElevenLabs={speakItemWithElevenLabs}
+                activeSpeakingId={activeSpeakingId}
+              />
 
             </div>
 
