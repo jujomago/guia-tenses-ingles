@@ -7,34 +7,14 @@ import {
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import IrregularVerbs from './components/IrregularVerbs';
+import QuestionsExplorer from './components/QuestionsExplorer';
+import { PillTag } from './components/PillTag';
 
 // --- DATA STRUCTURES ---
 
 // ElevenLabs Configuration
 const ELEVENLABS_API_KEY = import.meta.env.VITE_ELEVENLABS_API_KEY as string;
 const ELEVENLABS_VOICE_ID = import.meta.env.VITE_ELEVENLABS_VOICE_ID as string;
-
-const COLOR_DICT = {
-  subject: { label: 'Subject', bg: 'bg-indigo-100 dark:bg-indigo-950/80', text: 'text-indigo-800 dark:text-indigo-200', border: 'border-indigo-300 dark:border-indigo-700' },
-  verb: { label: 'Verb', bg: 'bg-emerald-100 dark:bg-emerald-950/80', text: 'text-emerald-800 dark:text-emerald-200', border: 'border-emerald-300 dark:border-emerald-700' },
-  aux: { label: 'Auxiliary / To Be', bg: 'bg-amber-100 dark:bg-amber-950/80', text: 'text-amber-800 dark:text-amber-200', border: 'border-amber-300 dark:border-amber-700' },
-  complement: { label: 'Complement', bg: 'bg-purple-100 dark:bg-purple-950/80', text: 'text-purple-800 dark:text-purple-200', border: 'border-purple-300 dark:border-purple-700' },
-  wh: { label: 'Wh- Word', bg: 'bg-orange-100 dark:bg-orange-950/80', text: 'text-orange-800 dark:text-orange-200', border: 'border-orange-300 dark:border-orange-700' }
-};
-
-const WH_WORDS = [
-  { id: 'what', word: 'WHAT', meaning: 'Qué / Cuál', icon: '❓', example: 'What is your favorite color?', tip: 'Usado para cosas, acciones o ideas.' },
-  { id: 'where', word: 'WHERE', meaning: 'Dónde', icon: '📍', example: 'Where do you live?', tip: 'Usado para lugares y ubicaciones.' },
-  { id: 'when', word: 'WHEN', meaning: 'Cuándo', icon: '🗓️', example: 'When is your birthday?', tip: 'Usado para tiempo, fechas y momentos.' },
-  { id: 'why', word: 'WHY', meaning: 'Por qué', icon: '🤔', example: 'Why are you happy?', tip: 'Pregunta la razón. Se responde con "Because...".' },
-  { id: 'who', word: 'WHO', meaning: 'Quién', icon: '👤', example: 'Who is your teacher?', tip: 'Usado para identificar personas.' },
-  { id: 'which', word: 'WHICH', meaning: 'Cuál (opción)', icon: '👉', example: 'Which pizza do you want?', tip: 'Usado cuando hay pocas opciones a elegir.' },
-  { id: 'how', word: 'HOW', meaning: 'Cómo', icon: '⚙️', example: 'How are you today?', tip: 'Usado para estados, maneras o procedimientos.' },
-  { id: 'whose', word: 'WHOSE', meaning: '¿De quién?', icon: '🔑', example: 'Whose jacket is this?', tip: 'Pregunta de quién es una posesión u objeto.' },
-  { id: 'how_many', word: 'HOW MANY', meaning: 'Cuántos(as)', icon: '🔢', example: 'How many apples do you have?', tip: 'Usado para cosas contables (manzanas, autos).' },
-  { id: 'how_much', word: 'HOW MUCH', meaning: 'Cuánto(a)', icon: '🥤', example: 'How much water do you drink?', tip: 'Usado para cosas incontables (agua, dinero).' },
-  { id: 'what_time', word: 'WHAT TIME', meaning: '¿A qué hora?', icon: '⏰', example: 'What time do you go to school?', tip: 'Pregunta por horas exactas del reloj.' }
-];
 
 const TENSES_DATA = [
   {
@@ -603,17 +583,6 @@ const speakTextWithElevenLabs = async (text: string, setLoadingState: ((v: boole
       if (setLoadingState) setLoadingState(false);
     }
   }
-};
-
-const PillTag = ({ text, type, size = 'md' }: { text: string; type: string; size?: string }) => {
-  const meta = COLOR_DICT[type as keyof typeof COLOR_DICT] || { bg: 'bg-slate-100', text: 'text-slate-800', border: 'border-slate-300' };
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-xs md:text-sm';
-  
-  return (
-    <span className={`inline-flex items-center font-extrabold border-2 rounded-lg shadow-sm ${meta.bg} ${meta.text} ${meta.border} ${sizeClasses}`}>
-      {text}
-    </span>
-  );
 };
 
 // --- MAIN REACT APPLICATION ---
@@ -1244,63 +1213,11 @@ export default function App() {
               </div>
             </div>
 
-            {/* Wh- Explorer */}
-            <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                    <span>❓</span> Wh- Question Words Explorer
-                  </h2>
-                  <p className="text-xs text-slate-500">Haz clic en el botón de audio 🎙️ para escuchar la voz ultra realista con ElevenLabs.</p>
-                </div>
-                <span className="text-xs bg-orange-100 text-orange-800 font-extrabold px-3 py-1 rounded-full">
-                  11 Palabras
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {WH_WORDS.map((item) => (
-                  <div 
-                    key={item.id}
-                    className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-orange-200 dark:border-orange-950 hover:shadow-md transition-all flex flex-col justify-between space-y-2"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xl">{item.icon}</span>
-                          <span className="font-black text-orange-600 dark:text-orange-400 text-lg">
-                            {item.word}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => speakItemWithElevenLabs(`${item.word}. ${item.example}`, item.id)}
-                          disabled={activeSpeakingId === item.id}
-                          className="p-1.5 rounded-full bg-orange-100 dark:bg-orange-950 text-orange-600 hover:scale-110 transition-transform disabled:opacity-50"
-                        >
-                          {activeSpeakingId === item.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Volume2 className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                        Meaning: <span className="text-slate-900 dark:text-slate-100 font-extrabold">{item.meaning}</span>
-                      </p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-slate-600 dark:text-slate-400 italic bg-white dark:bg-slate-800 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                        "{item.example}"
-                      </p>
-                      <p className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2 py-1 rounded-lg border border-amber-200 dark:border-amber-900 font-semibold">
-                        💡 {item.tip}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Questions Explorer (Wh- + Yes/No) */}
+            <QuestionsExplorer
+              speakItemWithElevenLabs={speakItemWithElevenLabs}
+              activeSpeakingId={activeSpeakingId}
+            />
 
             {/* SIMULATOR */}
             <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl border-2 border-indigo-500 shadow-md space-y-6">
