@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trophy, Star, Flame, Sparkles, BookOpen, Brain, RefreshCw, 
   CheckCircle2, XCircle, Volume2, VolumeX, Search, ArrowRight,
-  Sliders, Loader2, LogIn, LogOut, Mail
+  Sliders, Loader2, LogIn, LogOut, Mail, Lock
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -672,6 +672,14 @@ export default function App() {
   const [authMessage, setAuthMessage] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
 
+  // Admin credentials from .env
+  const ADMIN_USER = import.meta.env.VITE_ADMIN_USER as string;
+  const ADMIN_PASS = import.meta.env.VITE_ADMIN_PASS as string;
+  const [adminAuth, setAdminAuth] = useState(() => localStorage.getItem('adminAuth') === 'true');
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -711,7 +719,26 @@ export default function App() {
     }
   };
 
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthMessage('');
+    
+    if (adminUsername === ADMIN_USER && adminPassword === ADMIN_PASS) {
+      localStorage.setItem('adminAuth', 'true');
+      setAdminAuth(true);
+      setAdminUsername('');
+      setAdminPassword('');
+      setAuthMessage('');
+    } else {
+      setAuthMessage('Error: usuario o contraseña incorrectos');
+    }
+  };
+
   const handleSignOut = async () => {
+    localStorage.removeItem('adminAuth');
+    setAdminAuth(false);
+    setAdminUsername('');
+    setAdminPassword('');
     await supabase.auth.signOut();
   };
 
@@ -992,7 +1019,7 @@ export default function App() {
     );
   }
 
-  if (!user) {
+  if (!user && !adminAuth) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
@@ -1014,42 +1041,117 @@ export default function App() {
               <h2 className="text-xl font-black text-slate-800 dark:text-slate-100">Iniciar Sesión</h2>
             </div>
 
-            <form onSubmit={handleSignInWithMagicLink} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
-                  Correo Electrónico
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@correo.com"
-                    required
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
-                  />
-                </div>
-              </div>
-
+            {/* Login mode toggle */}
+            <div className="flex gap-2 mb-6 bg-slate-100 dark:bg-slate-700 p-1.5 rounded-2xl">
               <button
-                type="submit"
-                disabled={isSigningIn}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                type="button"
+                onClick={() => { setShowAdminLogin(false); setAuthMessage(''); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  !showAdminLogin
+                    ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
               >
-                {isSigningIn ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Enviando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-5 h-5" />
-                    <span>Enviar Enlace Mágico</span>
-                  </>
-                )}
+                <Mail className="w-4 h-4" />
+                <span>Enlace Mágico</span>
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => { setShowAdminLogin(true); setAuthMessage(''); }}
+                className={`flex-1 py-2.5 rounded-xl text-xs md:text-sm font-black transition-all flex items-center justify-center gap-2 ${
+                  showAdminLogin
+                    ? 'bg-white dark:bg-slate-800 text-purple-600 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                }`}
+              >
+                <Lock className="w-4 h-4" />
+                <span>Admin</span>
+              </button>
+            </div>
+
+            {!showAdminLogin ? (
+              <form onSubmit={handleSignInWithMagicLink} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                    Correo Electrónico
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="tu@correo.com"
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500 transition-colors font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSigningIn}
+                  className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  {isSigningIn ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-5 h-5" />
+                      <span>Enviar Enlace Mágico</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                    Usuario
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="text"
+                      value={adminUsername}
+                      onChange={(e) => setAdminUsername(e.target.value)}
+                      placeholder="Usuario"
+                      required
+                      autoComplete="username"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-purple-500 transition-colors font-medium"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="password"
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      placeholder="Contraseña"
+                      required
+                      autoComplete="current-password"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:border-purple-500 transition-colors font-medium"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <Lock className="w-5 h-5" />
+                  <span>Entrar como Admin</span>
+                </button>
+              </form>
+            )}
 
             {authMessage && (
               <div className={`mt-4 p-4 rounded-xl text-sm font-semibold ${
@@ -1102,8 +1204,10 @@ export default function App() {
             </select>
             
             <div className="hidden lg:flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-700 px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-600">
-              <Mail className="w-3.5 h-3.5 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[150px]">{user.email}</span>
+              <Lock className="w-3.5 h-3.5 text-purple-500" />
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate max-w-[150px]">
+                {adminAuth ? 'Admin' : user?.email}
+              </span>
             </div>
             
             <div className="flex items-center space-x-1.5 bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 px-3 py-1.5 rounded-full">
